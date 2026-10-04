@@ -1,7 +1,14 @@
 ## Summary
 
+## Links
+Closes #
+Requirements: REQ-
+Tests: <!-- paths or test IDs under tests/ -->
+
 ## Testing
-- [ ] Unit tests added or updated
+- [ ] Unit tests added or updated (`tests/unit`)
+- [ ] Integration tests added or updated (`tests/integration`)
+- [ ] E2E tests added or updated (`tests/e2e`)
 - [ ] Manual validation performed
 
 ## Documentation

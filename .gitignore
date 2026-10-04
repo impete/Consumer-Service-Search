@@ -21,3 +21,8 @@ terraform.tfstate.backup
 *.pem
 *.key
 *.crt
+.coverage
+coverage.xml
+junit*.xml
+htmlcov/
+reports/
