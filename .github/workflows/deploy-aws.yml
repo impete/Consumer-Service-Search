@@ -1,0 +1,9 @@
+name: Deploy AWS Production (placeholder)
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Add ECS deployment steps here. Configure AWS credentials via OIDC or GitHub Secrets."

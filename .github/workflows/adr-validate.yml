@@ -1,0 +1,11 @@
+name: ADR Validation
+on:
+  pull_request:
+    paths: ['docs/adr/**', 'docs/requirements/**', 'scripts/**']
+jobs:
+  validate-adr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/adr/validate-adr.sh
+      - run: bash scripts/ci/validate-requirements.sh

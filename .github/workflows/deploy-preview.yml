@@ -1,0 +1,10 @@
+name: Deploy Preview (placeholder)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Preview deploy placeholder for PR #${{ github.event.pull_request.number }}"

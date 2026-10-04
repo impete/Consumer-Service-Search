@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --prefix apps/api
+      - run: npm --prefix apps/api run lint
+      - run: npm --prefix apps/api run build
+      - run: npm --prefix apps/api test
+  search-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r apps/search-service/requirements.txt
+      - run: black --check apps/search-service
+      - run: pytest apps/search-service/tests -q
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t consumer-search-api ./apps/api
+      - run: docker build -t consumer-search-search ./apps/search-service
