@@ -7,4 +7,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Preview deploy placeholder for PR #${{ github.event.pull_request.number }}"
+      - run: 'echo "Preview deploy placeholder for PR #${{ github.event.pull_request.number }}"'
