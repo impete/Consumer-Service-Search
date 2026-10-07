@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="1" failures="0" errors="0" time="0.011544099">
-    <testsuite name="../../tests/unit/api/app.test.ts" timestamp="2026-10-07T19:38:48.842Z" hostname="runnervmmprz5" tests="1" failures="0" errors="0" skipped="0" time="0.011544099">
-        <testcase classname="../../tests/unit/api/app.test.ts" name="buildSearchRequest &gt; applies defaults" time="0.009330508">
+<testsuites name="vitest tests" tests="1" failures="0" errors="0" time="0.005548234">
+    <testsuite name="../../tests/unit/api/app.test.ts" timestamp="2026-10-07T19:53:04.803Z" hostname="runnervmmprz5" tests="1" failures="0" errors="0" skipped="0" time="0.005548234">
+        <testcase classname="../../tests/unit/api/app.test.ts" name="buildSearchRequest &gt; applies defaults" time="0.004705768">
         </testcase>
     </testsuite>
 </testsuites>
