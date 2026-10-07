@@ -1,10 +1,154 @@
-name: Deploy Preview (placeholder)
+name: Deploy Preview
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
-  preview:
+  smoke-test:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - run: echo "Preview deploy placeholder for PR #${{ github.event.pull_request.number }}"
+      - uses: actions/checkout@v7
+      - name: Build and start API and search service
+        run: docker compose up -d --build --wait api search-service
+      - name: Verify API /health (port 3000)
+        run: curl --fail --retry 15 --retry-delay 2 --retry-connrefused http://localhost:3000/health
+      - name: Verify search service /health (port 8000)
+        run: curl --fail --retry 15 --retry-delay 2 --retry-connrefused http://localhost:8000/health
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+  aws-preview:
+    needs: smoke-test
+    if: >-
+      github.event.action != 'closed' &&
+      vars.AWS_PREVIEW_ENABLED == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      ECS_CLUSTER: ${{ vars.AWS_ECS_CLUSTER }}
+      ECS_TASK_FAMILY: ${{ vars.AWS_ECS_TASK_FAMILY }}
+      ECR_REGISTRY_PREFIX: ${{ vars.AWS_ECR_REGISTRY_PREFIX }}
+      PREVIEW_DOMAIN: ${{ vars.AWS_PREVIEW_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push images
+        run: |
+          for app in api search-service; do
+            image="${{ steps.ecr.outputs.registry }}/${ECR_REGISTRY_PREFIX}/${app}:pr-${PR_NUMBER}-${GITHUB_SHA}"
+            docker build -t "$image" "apps/${app}"
+            docker push "$image"
+          done
+      - name: Register task definition and deploy service pr-${{ github.event.pull_request.number }}
+        run: |
+          registry="${{ steps.ecr.outputs.registry }}"
+          aws ecs describe-task-definition --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition > taskdef.json
+          jq --arg reg "$registry/$ECR_REGISTRY_PREFIX" --arg tag "pr-${PR_NUMBER}-${GITHUB_SHA}" '
+            del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)
+            | .family = "\(.family)-pr-\(env.PR_NUMBER)"
+            | .containerDefinitions |= map(
+                if .name == "api" then .image = "\($reg)/api:\($tag)"
+                elif .name == "search-service" then .image = "\($reg)/search-service:\($tag)"
+                else . end)' taskdef.json > new-taskdef.json
+          arn=$(aws ecs register-task-definition --cli-input-json file://new-taskdef.json \
+            --query taskDefinition.taskDefinitionArn --output text)
+          service="pr-${PR_NUMBER}"
+          status=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$service" \
+            --query 'services[0].status' --output text 2>/dev/null || true)
+          if [ "$status" = "ACTIVE" ]; then
+            aws ecs update-service --cluster "$ECS_CLUSTER" --service "$service" --task-definition "$arn" >/dev/null
+          else
+            aws ecs create-service --cluster "$ECS_CLUSTER" --service-name "$service" \
+              --task-definition "$arn" --desired-count 1 --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[${{ vars.AWS_PREVIEW_SUBNETS }}],securityGroups=[${{ vars.AWS_PREVIEW_SECURITY_GROUPS }}],assignPublicIp=DISABLED}" >/dev/null
+          fi
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$service"
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request.number;
+            const domain = process.env.PREVIEW_DOMAIN || 'staging.<domain>';
+            const marker = '<!-- preview-deploy -->';
+            const body = `${marker}\n✅ Preview deployed: https://pr-${pr}.${domain}`;
+            const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: pr });
+            const existing = comments.find(c => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: pr, body });
+            }
+
+  comment-smoke-result:
+    needs: [smoke-test, aws-preview]
+    if: always() && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request.number;
+            const smoke = '${{ needs.smoke-test.result }}';
+            const aws = '${{ needs.aws-preview.result }}';
+            const marker = '<!-- preview-smoke -->';
+            const body = `${marker}\nPreview smoke test (docker compose, /health on API :3000 and search service :8000): **${smoke}**\nAWS preview (pr-${pr}.<preview-domain>): **${aws}**`;
+            const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: pr });
+            const existing = comments.find(c => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: pr, body });
+            }
+
+  aws-cleanup:
+    if: >-
+      github.event.action == 'closed' &&
+      vars.AWS_PREVIEW_ENABLED == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Delete preview service pr-${{ github.event.pull_request.number }}
+        run: |
+          aws ecs delete-service --cluster "${{ vars.AWS_ECS_CLUSTER }}" \
+            --service "pr-${{ github.event.pull_request.number }}" --force
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🧹 Preview environment pr-${context.payload.pull_request.number} cleaned up.`,
+            });
