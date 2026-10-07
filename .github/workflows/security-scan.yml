@@ -20,3 +20,4 @@ jobs:
       # -r makes pip-audit resolve the requirements in its own isolated
       # environment, so runner-provided packages (e.g. setuptools) are not audited.
       - run: pip-audit -r apps/search-service/requirements.txt
+      - run: pip-audit -r apps/search-service/requirements-dev.txt

@@ -1,0 +1,103 @@
+name: PR Links
+# pull_request_target so bot-authored PRs (Dependabot, Copilot) get a write token and
+# can have REQ-0009 injected. The PR head is checked out only to test file existence and
+# grep; no PR code is ever executed here.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+  checks: read
+  actions: read
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Inject REQ-0009 into bot-authored PRs
+        id: inject
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            let body = pr.body || '';
+            let injected = false;
+            if (pr.user.type === 'Bot' && !/REQ-0009/.test(body)) {
+              body = `${body}\n\nRequirement: REQ-0009 (auto-injected for bot-authored PR)\n`.trimStart();
+              await github.rest.pulls.update({ ...context.repo, pull_number: pr.number, body });
+              injected = true;
+            }
+            core.setOutput('injected', String(injected));
+            core.setOutput('is_bot', String(pr.user.type === 'Bot'));
+            require('fs').writeFileSync(`${process.env.RUNNER_TEMP}/pr_body.txt`, body);
+      - name: Validate references
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          text="$(cat "$RUNNER_TEMP/pr_body.txt")"$'\n'"$PR_BRANCH"
+          issues=$(echo "$text" | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ' || true)
+          reqs=$(echo "$text" | grep -oE 'REQ-[0-9]{4}' | sort -u || true)
+          adrs=$(echo "$text" | grep -oE 'ADR-[0-9]{4}' | sort -u || true)
+          if [ -z "$issues$reqs$adrs" ]; then
+            echo "::error::PR must reference an issue (#N), REQ-xxxx or ADR-xxxx"; exit 1
+          fi
+          fail=0
+          for r in $reqs; do
+            [ -f "docs/requirements/$r.md" ] || { echo "::error::Unknown $r"; fail=1; continue; }
+            grep -rq --include='*.py' --include='*.ts' "$r" tests || echo "::warning::$r has no linked test"
+          done
+          for a in $adrs; do
+            [ -f "docs/adr/$a.md" ] || { echo "::error::Unknown $a"; fail=1; }
+          done
+          {
+            echo "### Traceability"
+            echo "- Issues: ${issues:-none}"
+            echo "- Requirements: $(echo $reqs)"
+            echo "- ADRs: $(echo $adrs)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $fail
+      - name: Verify security-scan passed (bot PRs)
+        if: steps.inject.outputs.is_bot == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const head_sha = context.payload.pull_request.head.sha;
+            const deadline = Date.now() + 20 * 60 * 1000;
+            while (true) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                ...context.repo, workflow_id: 'security-scan.yml', head_sha, event: 'pull_request',
+              });
+              const run = data.workflow_runs[0];
+              if (run && run.status === 'completed') {
+                if (run.conclusion !== 'success') core.setFailed(`security-scan ${run.conclusion}: ${run.html_url}`);
+                return;
+              }
+              if (Date.now() > deadline) { core.setFailed('security-scan did not finish in time'); return; }
+              await new Promise(r => setTimeout(r, 30000));
+            }
+      - name: Sticky comment
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          INJECTED: ${{ steps.inject.outputs.injected }}
+        with:
+          script: |
+            const marker = '<!-- pr-links -->';
+            const body = require('fs').readFileSync(`${process.env.RUNNER_TEMP}/pr_body.txt`, 'utf8');
+            const reqs = [...new Set(body.match(/REQ-\d{4}/g) || [])];
+            const rows = reqs.map(r => {
+              const out = require('child_process').spawnSync('grep', ['-rl', '--include=*.py', '--include=*.ts', r, 'tests']).stdout.toString().trim().split('\n').filter(Boolean);
+              return `| ${r} | ${out.length ? out.map(f => '`' + f + '`').join(', ') : '_none_'} |`;
+            });
+            const note = process.env.INJECTED === 'true' ? '\n\n> Injected by workflow (bot-authored PR): REQ-0009' : '';
+            const text = `${marker}\n### Requirement → test links\n| Requirement | Tests |\n|---|---|\n${rows.join('\n') || '| _none referenced_ | |'}${note}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.startsWith(marker));
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: text });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body: text });
