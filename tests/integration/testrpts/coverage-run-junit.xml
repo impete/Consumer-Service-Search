@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="3" failures="0" errors="0" time="0.133595151">
-    <testsuite name="../../tests/integration/api.test.ts" timestamp="2026-10-07T19:11:23.465Z" hostname="runnervm8df0l" tests="2" failures="0" errors="0" skipped="1" time="0.122646">
-        <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /health" time="0.039568652">
+<testsuites name="vitest tests" tests="3" failures="0" errors="0" time="0.162091518">
+    <testsuite name="../../tests/integration/api.test.ts" timestamp="2026-10-07T19:38:54.424Z" hostname="runnervmmprz5" tests="2" failures="0" errors="0" skipped="1" time="0.150080338">
+        <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /health" time="0.049359007">
         </testcase>
         <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /search-status @noncritical" time="0">
             <skipped/>
         </testcase>
     </testsuite>
-    <testsuite name="../../tests/unit/api/app.test.ts" timestamp="2026-10-07T19:11:23.466Z" hostname="runnervm8df0l" tests="1" failures="0" errors="0" skipped="0" time="0.010949151">
-        <testcase classname="../../tests/unit/api/app.test.ts" name="buildSearchRequest &gt; applies defaults" time="0.009379591">
+    <testsuite name="../../tests/unit/api/app.test.ts" timestamp="2026-10-07T19:38:54.426Z" hostname="runnervmmprz5" tests="1" failures="0" errors="0" skipped="0" time="0.01201118">
+        <testcase classname="../../tests/unit/api/app.test.ts" name="buildSearchRequest &gt; applies defaults" time="0.009589821">
         </testcase>
     </testsuite>
 </testsuites>
