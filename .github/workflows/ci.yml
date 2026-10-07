@@ -184,22 +184,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4.3.0
         continue-on-error: true
         with:
           name: unit-reports
           path: tests/unit/testrpts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4.3.0
         continue-on-error: true
         with:
           name: integration-reports
           path: tests/integration/testrpts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4.3.0
         continue-on-error: true
         with:
           name: coverage-reports
           path: tests/integration/testrpts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4.3.0
         continue-on-error: true
         with:
           name: e2e-reports
