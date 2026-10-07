@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="2" failures="0" errors="0" time="0.128954698">
+    <testsuite name="../../tests/integration/api.test.ts" timestamp="2026-10-07T18:36:31.128Z" hostname="runnervm8df0l" tests="2" failures="0" errors="0" skipped="1" time="0.128954698">
+        <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /health" time="0.039023765">
+        </testcase>
+        <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /search-status @noncritical" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+</testsuites>

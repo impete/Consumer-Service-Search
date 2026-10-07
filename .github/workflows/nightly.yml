@@ -1,0 +1,81 @@
+name: Nightly
+# Informational only: noncritical tests and e2e. No coverage gate.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  noncritical:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: consumer_service_search
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+    env:
+      REDIS_URL: redis://localhost:6379
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consumer_service_search
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: apps/search-service/requirements-dev.txt
+      - run: npm ci --prefix apps/api
+      - run: pip install -r apps/search-service/requirements-dev.txt
+      - run: mkdir -p tests/unit/testrpts tests/integration/testrpts
+      # e2e tests are also marked noncritical but need the compose stack; they run in the e2e job
+      - run: pytest tests/unit tests/integration -q -m noncritical --junitxml=tests/integration/testrpts/pytest-noncritical-junit.xml
+      - run: >
+          npm --prefix apps/api test --
+          -t "@noncritical" --passWithNoTests
+          --outputFile.junit=../../tests/integration/testrpts/vitest-noncritical-junit.xml
+          --coverage.enabled=false
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-noncritical-reports
+          path: tests/integration/testrpts/
+          if-no-files-found: ignore
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: apps/search-service/requirements-dev.txt
+      - run: pip install -r apps/search-service/requirements-dev.txt
+      - run: mkdir -p tests/e2e/testrpts
+      - run: docker compose up -d --build
+      - name: Wait for services
+        run: |
+          for url in http://localhost:3000/health http://localhost:8000/health; do
+            for _ in $(seq 1 30); do curl -fs "$url" && break; sleep 2; done
+          done
+      - run: E2E=1 pytest tests/e2e -q --junitxml=tests/e2e/testrpts/pytest-junit.xml
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-e2e-reports
+          path: tests/e2e/testrpts/
+          if-no-files-found: ignore

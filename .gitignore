@@ -21,3 +21,12 @@ terraform.tfstate.backup
 *.pem
 *.key
 *.crt
+.coverage
+coverage.xml
+junit*.xml
+htmlcov/
+reports/
+
+# per-suite test reports are generated in CI and force-added by the bot on main
+tests/*/testrpts/
+!tests/coverage-floor.json
