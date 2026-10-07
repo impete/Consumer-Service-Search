@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="3" failures="0" errors="0" time="0.160434463">
+    <testsuite name="../../tests/integration/api.test.ts" timestamp="2026-10-07T18:36:30.187Z" hostname="runnervmmprz5" tests="2" failures="0" errors="0" skipped="1" time="0.147607984">
+        <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /health" time="0.046753436">
+        </testcase>
+        <testcase classname="../../tests/integration/api.test.ts" name="api routes &gt; GET /search-status @noncritical" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="../../tests/unit/api/app.test.ts" timestamp="2026-10-07T18:36:30.189Z" hostname="runnervmmprz5" tests="1" failures="0" errors="0" skipped="0" time="0.012826479">
+        <testcase classname="../../tests/unit/api/app.test.ts" name="buildSearchRequest &gt; applies defaults" time="0.010932934">
+        </testcase>
+    </testsuite>
+</testsuites>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="1" failures="0" errors="0" time="0.005431088">
+    <testsuite name="../../tests/unit/api/app.test.ts" timestamp="2026-10-07T18:36:30.657Z" hostname="runnervm8df0l" tests="1" failures="0" errors="0" skipped="0" time="0.005431088">
+        <testcase classname="../../tests/unit/api/app.test.ts" name="buildSearchRequest &gt; applies defaults" time="0.004595792">
+        </testcase>
+    </testsuite>
+</testsuites>
