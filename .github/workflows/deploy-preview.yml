@@ -87,7 +87,7 @@ jobs:
           fi
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$service"
       - name: Comment preview URL
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pr = context.payload.pull_request.number;
@@ -109,7 +109,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             const pr = context.payload.pull_request.number;
@@ -144,7 +144,7 @@ jobs:
         run: |
           aws ecs delete-service --cluster "${{ vars.AWS_ECS_CLUSTER }}" \
             --service "pr-${{ github.event.pull_request.number }}" --force
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             await github.rest.issues.createComment({
