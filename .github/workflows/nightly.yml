@@ -45,7 +45,7 @@ jobs:
           -t "@noncritical" --passWithNoTests
           --outputFile.junit=../../tests/integration/testrpts/vitest-noncritical-junit.xml
           --coverage.enabled=false
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-noncritical-reports
@@ -73,7 +73,7 @@ jobs:
         run: docker compose logs
       - if: always()
         run: docker compose down -v
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-e2e-reports
